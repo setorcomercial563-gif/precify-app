@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Precify</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0f172a;       /* Dark Slate */
+      --surface: #1e293b;  /* Card Background */
+      --surface-2: #334155;/* Hover/Secondary */
+      --primary: #3b82f6;  /* Azul Moderno */
+      --money: #10b981;    /* Verde Dinheiro (Preço) */
+      --text-high: #f8fafc;
+      --text-med: #94a3b8;
+      --border: #334155;
+      --radius: 12px;      /* Bordas Arredondadas Modernas */
+    }
+
+    /* REMOVER BARRA DE ROLAGEM VISUALMENTE */
+    * { 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE 10+ */
+    }
+    *::-webkit-scrollbar { 
+      display: none; /* Chrome/Safari */
+      width: 0px;
+      background: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-high);
+      font-family: 'Lato', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .brand-box {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .brand-title {
+      font-size: 3rem;       /* Bem grande para destaque */
+      font-weight: 800;      /* Extra Bold */
+      color: var(--text-high);
+      margin: 0;
+      line-height: 1;        /* Fica compacto */
+      letter-spacing: -1px;  /* Visual moderno e "junto" */
+    }
+    .brand-subtitle {
+      font-size: 1rem;       /* Tamanho discreto */
+      color: var(--text-med);
+      font-weight: 400;
+      margin-top: 6px;       /* Pequeno espaço do título */
+      display: block;        /* Garante que fique abaixo */
+    }
+
+    /* INPUTS MODERNOS - SEM SETAS NUMÉRICAS */
+    input, select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-high);
+      padding: 16px;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-family: 'Lato', sans-serif;
+      outline: none;
+      transition: all 0.2s ease;
+      margin-bottom: 20px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    /* Remove setas do input number */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; margin: 0; 
+    }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* LAYOUT DE TELA */
+    .screen {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    .screen.active { display: flex; }
+    
+    .header {
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      color: var(--text-high);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* BOTÕES CLEAN */
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 16px;
+      border-radius: var(--radius);
+      font-weight: 700;
+      font-size: 1rem;
+      width: 100%;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transition: transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled {
+      background: var(--surface-2);
+      color: var(--text-med);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text-high);
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .btn-danger { background: #ef4444; color: white; }
+
+    /* GRUPO DE PESQUISA */
+    .search-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .search-group input { margin-bottom: 0; }
+    .btn-icon {
+      width: 58px;
+      flex-shrink: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+
+    /* CARDS DE PRODUTOS */
+    .product-list { flex: 1; overflow-y: auto; padding-bottom: 100px; }
+    .product-card {
+      background: var(--surface);
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: background 0.2s;
+    }
+    .product-card:active { background: var(--surface-2); }
+    
+    /* CORREÇÃO DA IMAGEM */
+    .prod-img {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: contain; /* Garante que a imagem caiba sem distorcer */
+      background: transparent; /* Remove fundo preto */
+      flex-shrink: 0;
+    }
+    .prod-info { flex: 1; overflow: hidden; }
+    .prod-name {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      color: var(--text-high);
+      white-space: normal; /* Remove a trava de linha única */
+      overflow-wrap: break-word; /* Força quebra em palavras gigantes */
+      word-break: break-word; /* Fallback para cross-browser */
+    }
+    .prod-ean { font-size: 0.85rem; color: var(--text-med); font-family: monospace; }
+    .prod-action { color: var(--primary); font-size: 1.5rem; font-weight: bold; }
+
+    /* SCANNER */
+    #reader {
+      width: 100%;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: none;
+      background: #000;
+    }
+    .scan-active #reader { display: block; border: 2px solid var(--primary); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(5px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    /* PREÇO VERDE */
+    .price-container {
+      margin: 10px 0;
+      text-align: center;
+      background: rgba(16, 185, 129, 0.05); /* Verde super sutil no fundo */
+      border: 1px solid var(--money);
+      border-radius: var(--radius);
+      padding: 24px;
+      position: relative;
+    }
+    .price-display {
+      font-size: 2.5rem;
+      color: var(--money); /* TEXTO VERDE */
+      font-weight: 700;
+    }
+    .price-label {
+      color: var(--money);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    #inp-price-raw {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: text;
+    }
+    
+    /* BOTTOM BAR AJUSTADA */
+    .bottom-bar {
+      padding: 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 16px; /* Espaço entre botões */
+    }
+
+    /* --- NOVOS BOTÕES REFINADOS --- */
+    /* Botão Flutuante de Itens (Estilo Pílula Premium) */
+    .btn-pill {
+      background: rgba(51, 65, 85, 0.8); /* Fundo semi-transparente */
+      color: var(--text-high);
+      border: 1px solid var(--border);
+      padding: 8px 20px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      transition: all 0.2s ease;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-pill:active { transform: scale(0.95); background: var(--surface-2); }
+    
+    /* Botão Scanner (Quadrado com Icone Centralizado) */
+    .btn-scan-trigger {
+      width: 56px; height: 56px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 16px; /* Squircle */
+      display: flex; align-items: center; justify-content: center;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
+    }
+    .btn-scan-trigger:active { transform: scale(0.92); }
+    .btn-scan-trigger.active {
+      background: #ef4444; color: white; border-color: #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+
+    /* --- SISTEMA DE NOTIFICAÇÃO (TOAST) --- */
+    #toast-container {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 2000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+      width: 90%; max-width: 400px;
+    }
+    .toast {
+      background: var(--surface);
+      color: var(--text-high);
+      border-left: 4px solid var(--primary);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      font-size: 0.95rem;
+      /* AJUSTE DO ESPAÇAMENTO AQUI */
+      display: flex; 
+      align-items: center; 
+      justify-content: flex-start; /* Era space-between, isso causava o buraco */
+      gap: 15px; /* Espaço fixo e elegante entre ícone e texto */
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: auto;
+    }
+    .toast.success { border-color: var(--money); }
+    .toast.error { border-color: #ef4444; }
+    
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* --- MODAL DE CONFIRMAÇÃO (Substitui confirm()) --- */
+    .confirm-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .confirm-actions button { margin: 0; flex: 1; }
+
+    /* --- CHECKBOX MODERNO (LEMBRAR-ME) --- */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    /* Esconde o input nativo feio */
+    .checkbox-container input {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      height: 0;
+      width: 0;
+    }
+    
+    /* O visual do checkbox */
+    .checkmark {
+      height: 24px;
+      width: 24px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    
+    .checkbox-container:hover .checkmark {
+      border-color: var(--primary);
+    }
+    
+    /* Quando marcado */
+    .checkbox-container input:checked ~ .checkmark {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    /* O ícone de check (escondido por padrão) */
+    .checkmark:after {
+      content: "";
+      position: absolute;
+      display: none;
+      left: 8px;
+      top: 4px;
+      width: 6px;
+      height: 12px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    
+    .checkbox-container input:checked ~ .checkmark:after {
+      display: block;
+    }
+    
+    .checkbox-label {
+      color: var(--text-med);
+      font-size: 0.95rem;
+    }
+
+    /* --- MODAL DE PROTEÇÃO DE SAÍDA --- */
+    .exit-warning-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .exit-stats {
+      background: var(--surface-2);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      text-align: left;
+      border-left: 4px solid #f59e0b; /* Laranja Alerta */
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: var(--text-med);
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-row:last-child { border-bottom: none; margin-bottom: 0; }
+    
+    .stat-value {
+      color: var(--text-high);
+      font-weight: bold;
+      font-family: monospace; /* Destaque numérico */
+      font-size: 1rem;
+    }
+
+    /* --- BOTÃO LOGOUT (Cabeçalho) --- */
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-med);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%; /* Circular */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0;
+    }
+    .btn-logout:active {
+      background: rgba(239, 68, 68, 0.2); /* Fundo vermelho suave */
+      color: #ef4444; /* Ícone vermelho */
+      border-color: #ef4444;
+      transform: scale(0.95);
+    }
+
+    /* --- FILTRO DE SETORES (TAGS) --- */
+    .category-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch; /* Rolagem suave no iOS */
+      scrollbar-width: none; /* Firefox */
+    }
+    .category-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+    .cat-tag {
+      background: var(--surface-2);
+      color: var(--text-med);
+      padding: 8px 16px;
+      border-radius: 50px; /* Formato Pílula */
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      flex-shrink: 0; /* Impede que encolha */
+    }
+
+    .cat-tag.active {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* --- CUSTOM DROPDOWN (PESQUISA CONCORRENTE) --- */
+    .dropdown-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    
+    .dropdown-list {
+      position: absolute;
+      top: 100%; /* Fica logo abaixo do input */
+      left: 0;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      max-height: 220px; /* Limite de altura para não quebrar a tela */
+      overflow-y: auto; /* Permite rolar */
+      z-index: 50; /* Fica por cima de tudo */
+      display: none; /* Escondido por padrão */
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    }
+    
+    .dropdown-list.open {
+      display: block;
+    }
+
+    /* Esconder a barra de rolagem (mas permitir rolar) */
+    .dropdown-list {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+    .dropdown-list::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    .dropdown-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text-med);
+      transition: background 0.2s;
+    }
+    
+    .dropdown-item:last-child { border-bottom: none; }
+    
+    .dropdown-item:hover {
+      background: var(--surface-2);
+      color: var(--text-high);
+    }
+    
+    /* Destaque para o texto digitado (Opcional) */
+    .highlight { color: var(--primary); font-weight: bold; }
+
+    /* --- MODAL SUCCESS (Novo) --- */
+    #modal-success .modal-box {
+      text-align: center;
+      padding-top: 40px;
+    }
+    .success-icon-anim {
+      width: 80px; height: 80px;
+      background: #10b981;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: -60px auto 20px auto; /* Sobe para fora do card */
+      box-shadow: 0 0 0 10px var(--surface);
+    }
+    .success-icon-anim svg { color: white; width: 40px; height: 40px; }
+    
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 25px;
+    }
+    .btn-action {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: var(--radius);
+      color: var(--text-high);
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      transition: all 0.2s;
+    }
+    .btn-action:active { transform: scale(0.96); }
+    .btn-action svg { width: 32px; height: 32px; margin-bottom: 5px; }
+    
+    /* Cores específicas */
+    .btn-whatsapp { color: #25D366; border-color: rgba(37, 211, 102, 0.2); }
+    .btn-whatsapp:hover { background: rgba(37, 211, 102, 0.1); }
+    
+    .btn-pdf { color: #F40F02; border-color: rgba(244, 15, 2, 0.2); }
+    .btn-pdf:hover { background: rgba(244, 15, 2, 0.1); }
+    
+    .btn-new { grid-column: span 2; background: var(--primary); color: white; border: none; font-weight: bold; }
+
+    /* --- RODAPÉ FIXO COMPACTO --- */
+    #app-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: var(--bg); /* Fundo igual ao do site para ser discreto */
+      border-top: 1px solid var(--border);
+      padding: 10px 0; /* Altura compacta */
+      text-align: center;
+      z-index: 90; /* Fica acima do conteúdo, mas abaixo dos Modais (100) */
+      backdrop-filter: blur(5px); /* Efeito moderno */
+    }
+
+    .footer-text {
+      color: var(--text-med);
+      font-size: 0.75rem; /* Fonte pequena e elegante */
+      margin: 0;
+      line-height: 1.2;
+      font-family: 'Lato', sans-serif;
+    }
+
+    /* CRÍTICO: Empurra o conteúdo para cima para não ficar atrás do rodapé */
+    .screen {
+      padding-bottom: 70px !important; 
+    }
+
+    /* --- BOTÃO LATERAL SUGESTÕES (SEM SVG) --- */
+    .btn-fab-feedback {
+      position: fixed;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 60px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 16px 0 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-med);
+      cursor: pointer;
+      z-index: 95;
+      box-shadow: -4px 2px 10px rgba(0,0,0,0.3);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .btn-fab-feedback:active { 
+      background: var(--primary); 
+      color: #fff; 
+      width: 44px; 
+    }
+
+    /* ÍCONE DE COMENTÁRIO EM PURE CSS (Nenhum SVG usado) */
+    .css-comment-icon {
+      width: 16px;
+      height: 12px;
+      border: 2px solid currentColor;
+      border-radius: 4px;
+      position: relative;
+      margin-left: 2px; /* Centraliza visualmente na gavetinha */
+    }
+    
+    /* A pontinha do balão de fala */
+    .css-comment-icon::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 2px;
+      width: 6px;
+      height: 6px;
+      border-bottom: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+      background: var(--surface-2); /* Fundo igual ao botão */
+      transform: rotate(45deg);
+      transition: background 0.2s;
+    }
+    
+    /* Muda a cor da pontinha do balão quando clica no botão */
+    .btn-fab-feedback:active .css-comment-icon::after {
+      background: var(--primary);
+    }
+
+    #view-login .btn-fab-feedback, #view-cart .btn-fab-feedback { display: none; }
+
+    /* --- TEXTAREA DO MODAL --- */
+    textarea.modern-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.5); /* Mais escuro que o card */
+      border: 1px solid var(--border);
+      color: var(--text-high);
+      padding: 16px;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-family: 'Lato', sans-serif;
+      outline: none;
+      resize: none; /* Impede quebrar o layout */
+      height: 120px;
+      transition: all 0.2s;
+    }
+    textarea.modern-input:focus { border-color: var(--primary); }
+
+    /* Bloqueador de Cliques (Escudo Invisível) */
+  #tour-blocker {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 9998; /* Fica acima de tudo, mas abaixo do Tooltip (10000) */
+    display: none;
+    cursor: default;
+  }
+  #tour-blocker.active { display: block; }
+
+  /* O "Spotlight" (Foco de Luz) */
+  .tour-spotlight {
+    position: absolute;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.90);
+    z-index: 9995;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    border: 2px solid var(--primary);
+    background: transparent;
+    opacity: 0; visibility: hidden;
+  }
+  .tour-spotlight.active { opacity: 1; visibility: visible; }
+  .tour-spotlight::after {
+    content: ''; position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px;
+    border: 2px solid var(--primary); border-radius: 14px;
+    opacity: 0; animation: tourPulse 2s infinite;
+  }
+  @keyframes tourPulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.1); opacity: 0; } }
+
+  /* Tooltip (Balão de Texto) */
+  .tour-tooltip {
+    position: absolute;
+    width: 320px; max-width: 90vw;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 24px; border-radius: 20px;
+    color: var(--text-high); z-index: 10000;
+    opacity: 0; visibility: hidden;
+    transition: top 0.3s ease, left 0.3s ease, opacity 0.2s ease;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+  }
+  .tour-tooltip.active { opacity: 1; visibility: visible; }
+  
+  .tour-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .tour-title { font-weight: 800; color: var(--primary); font-size: 1.2rem; }
+  .tour-step-count { font-size: 0.8rem; color: var(--text-med); background: var(--surface-2); padding: 4px 10px; border-radius: 12px; font-weight: 600; }
+  .tour-body { font-size: 1rem; color: var(--text-med); line-height: 1.6; margin-bottom: 24px; }
+  
+  .tour-footer { display: flex; justify-content: space-between; gap: 12px; }
+  .btn-tour { padding: 12px 20px; border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; border: none; transition: 0.2s; }
+  .btn-tour-skip { background: transparent; color: var(--text-med); }
+  .btn-tour-skip:hover { color: var(--text-high); background: var(--surface-2); }
+  .btn-tour-next { background: var(--primary); color: white; flex: 1; }
+  .btn-tour-next:active { transform: scale(0.98); }
+
+  /* AJUSTE MOBILE: Reduz tamanho para caber melhor */
+  @media (max-width: 480px) {
+    .tour-tooltip { padding: 16px; width: 280px; border-radius: 16px; }
+    .tour-header { margin-bottom: 10px; }
+    .tour-title { font-size: 1rem; }
+    .tour-body { font-size: 0.9rem; margin-bottom: 16px; line-height: 1.4; }
+    .btn-tour { padding: 10px 16px; font-size: 0.85rem; }
+  }
+
+  #modal-welcome .modal-box { text-align: center; border-top: 4px solid var(--primary); max-width: 450px; }
+  </style>
+</head>
+<body>
+
+  <div id="view-login" class="screen active">
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+      
+      <div class="brand-box">
+        <h1 class="brand-title">Precify</h1>
+        <span class="brand-subtitle">Monitoramento de Preços</span>
+      </div>
+      <label style="color:var(--text-med); margin-bottom:8px; display:block;">Usuário</label>
+      <select id="sel-user">
+        <option value="">Carregando base...</option>
+      </select>
+      
+      <label class="checkbox-container">
+        <input type="checkbox" id="chk-remember">
+        <span class="checkmark"></span>
+        <span class="checkbox-label">Lembrar minha escolha</span>
+      </label>
+      
+      <label style="color:var(--text-med); margin-bottom:8px; display:block; margin-top:10px;">Concorrente</label>
+      
+      <div class="dropdown-wrapper">
+        <input type="text" 
+               id="sel-competitor" 
+               placeholder="Digite para buscar..." 
+               autocomplete="off"
+               oninput="app.filterCompetitors()" 
+               onfocus="app.filterCompetitors()"
+               style="margin-bottom:0; border-radius: var(--radius);">
+               
+        <div id="list-competitors-custom" class="dropdown-list">
+          </div>
+      </div>
+      
+      <button id="btn-login" class="btn" onclick="app.login()" disabled style="margin-top:20px;">
+        Aguardando Dados...
+      </button>
+    </div>
+  </div>
+
+  <div id="view-list" class="screen">
+    <div class="header">
+      <span id="lbl-competitor" style="font-weight:700; font-size:1.1rem; color:var(--text-high);">...</span>
+      
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn-pill" onclick="app.toggleCart()">
+          <span>ITENS</span>
+          <span id="cart-count" style="background:var(--primary); color:#000; padding:2px 8px; border-radius:10px; font-size:0.75rem;">0</span>
+        </button>
+
+        <button class="btn-logout" onclick="app.attemptGoBack()">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+             <polyline points="16 17 21 12 16 7"></polyline>
+             <line x1="21" y1="12" x2="9" y2="12"></line>
+           </svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="reader"></div>
+
+    <div class="search-group" style="align-items:center; margin-bottom:10px;">
+      <input type="text" id="inp-search" placeholder="Buscar produto..." onkeyup="app.filterProducts()" style="margin-bottom:0; height:56px;">
+      
+      <button id="btn-scan" class="btn-scan-trigger" onclick="app.toggleScanner()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="category-scroll" id="cat-container">
+      </div>
+
+    <div class="product-list" id="list-container"></div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <div id="modal-confirm" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="margin-top:0; color:var(--text-high);">Confirmação</h3>
+      <p id="confirm-msg" style="color:var(--text-med); margin:0;">Tem certeza?</p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" onclick="app.closeConfirm()">Cancelar</button>
+        <button id="btn-confirm-yes" class="btn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-cart" class="screen">
+    <div class="header">
+      REGISTROS
+      <button class="btn-secondary" style="width:auto; padding:6px 12px;" onclick="app.showList()">VOLTAR</button>
+    </div>
+    <div class="product-list" id="cart-container"></div>
+    <div class="bottom-bar">
+      <button class="btn btn-danger" onclick="app.clearCart()">LIMPAR</button>
+      <button class="btn" onclick="app.startQueueProcess()">SALVAR DADOS</button>
+    </div>
+  </div>
+
+  <div id="modal-price" class="modal-overlay">
+    <div class="modal-box">
+      <div style="text-align:center;">
+        <h3 id="modal-prod-name" style="margin-top:0; margin-bottom:10px; color:var(--text-high); font-size:1.1rem;">Produto</h3>
+        <img id="modal-prod-img" src="" style="width:120px; height:120px; object-fit:contain; margin:0 auto; display:block;">
+      </div>
+      
+      <div class="price-container" onclick="document.getElementById('inp-price-raw').focus()">
+        <div class="price-label">Valor do Produto</div>
+        <div class="price-display" id="display-price">R$ 0,00</div>
+        <input type="number" id="inp-price-raw" inputmode="numeric" oninput="app.maskPrice(this.value)">
+      </div>
+
+      <div style="display:flex; gap:16px;">
+        <button class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+        <button class="btn" onclick="app.confirmPrice()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-queue" class="modal-overlay">
+    <div class="modal-box" style="text-align:center;">
+      <h3 style="color:var(--primary)">AGUARDE...</h3>
+      <div id="queue-msg">Sincronizando fila...</div>
+    </div>
+  </div>
+
+  <div id="modal-success" class="modal-overlay">
+    <div class="modal-box">
+      <div class="success-icon-anim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      
+      <h2 style="margin:0; color:var(--text-high);">Sucesso!</h2>
+      <p style="color:var(--text-med); margin-top:5px;">Os dados foram salvos.</p>
+      
+      <div class="action-grid">
+        <button class="btn-action btn-pdf" onclick="app.downloadPdf()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Gerar PDF
+        </button>
+        
+        <button class="btn-action btn-whatsapp" onclick="app.sendWhatsapp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          WhatsApp
+        </button>
+        
+        <button class="btn-action btn-new" onclick="app.finishProcess()">
+          FINALIZAR E NOVA PESQUISA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-exit" class="modal-overlay">
+    <div class="modal-box">
+      <div class="exit-warning-content">
+        <div style="margin:0 auto; color:#f59e0b; margin-bottom:15px;">
+            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </div>
+        
+        <h3 style="margin:0; margin-bottom:10px; color:var(--text-high);">Deseja sair da coleta?</h3>
+        
+        <div class="exit-stats">
+          <div class="stat-row">
+            <span>Loja Atual:</span>
+            <span class="stat-value" id="exit-store-name">...</span>
+          </div>
+          <div class="stat-row">
+            <span>Itens na Lista:</span>
+            <span class="stat-value" id="exit-item-count">0</span>
+          </div>
+          <div class="stat-row">
+            <span>Validade do Cache:</span>
+            <span class="stat-value" style="color:#10b981;">7 Dias</span>
+          </div>
+        </div>
+        
+        <p style="font-size:0.85rem; color:var(--text-med); margin:15px 0 0 0; line-height:1.4;">
+          Seus itens ficarão salvos automaticamente neste celular caso precise voltar depois.
+        </p>
+
+        <div style="display:flex; gap:15px; margin-top:20px;">
+          <button class="btn btn-secondary" onclick="app.cancelExit()">Continuar</button>
+          <button class="btn btn-danger" onclick="app.confirmExit()">Sair e Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-footer">
+    <p class="footer-text">
+      Copyright © 2026 Marcus Brandão. Todos os direitos reservados.<br>
+      <span style="opacity: 0.7; font-size: 0.65rem;">v 19.02.2026</span>
+    </p>
+  </div>
+
+  <button id="btn-feedback" class="btn-fab-feedback" onclick="app.openFeedback()" style="display:none;">
+    <div class="css-comment-icon"></div>
+  </button>
+
+  <div id="modal-feedback" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="margin-top:0; color:var(--text-high); display:flex; align-items:center; gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Enviar Sugestão
+      </h3>
+      <p style="color:var(--text-med); margin:0 0 15px 0; font-size:0.9rem;">
+        Encontrou um erro ou tem uma ideia de melhoria? Conte pra gente.
+      </p>
+      
+      <textarea id="inp-feedback" class="modern-input" placeholder="Digite sua sugestão aqui..."></textarea>
+
+      <div style="display:flex; gap:16px; margin-top:5px;">
+        <button class="btn btn-secondary" onclick="app.closeFeedback()">Cancelar</button>
+        <button id="btn-send-feedback" class="btn" onclick="app.sendFeedback()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+<div id="tour-blocker"></div> <div id="tour-spotlight" class="tour-spotlight"></div>
+
+<div id="tour-tooltip" class="tour-tooltip">
+  <div class="tour-header">
+    <span class="tour-title" id="tour-title">...</span>
+    <span class="tour-step-count" id="tour-step">1/8</span>
+  </div>
+  <div class="tour-body" id="tour-text">...</div>
+  <div class="tour-footer">
+    <button class="btn-tour btn-tour-skip" onclick="Onboarding.skip()">Sair</button>
+    <div style="display:flex; gap:10px; flex:1; justify-content: flex-end;">
+       <button class="btn-tour btn-tour-skip" onclick="Onboarding.prev()" id="btn-tour-prev" style="display:none; border:1px solid var(--border);">Voltar</button>
+       <button class="btn-tour btn-tour-next" onclick="Onboarding.next()" id="btn-tour-next">Próximo</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-welcome" class="modal-overlay">
+  <div class="modal-box">
+    <div style="font-size: 4rem; margin-bottom:15px;">🚀</div>
+    <h2 style="margin: 0 0 15px 0; color: var(--text-high); font-size: 1.8rem;">Bem-vindo ao Precify!</h2>
+    <p style="color: var(--text-med); line-height: 1.6; margin-bottom:30px; font-size: 1.1rem;">
+      Vamos fazer um tour rápido para você dominar todas as ferramentas?
+    </p>
+    <div style="display: flex; gap: 15px;">
+      <button class="btn btn-secondary" onclick="Onboarding.dismissWelcome()" style="flex: 1;">Agora não</button>
+      <button class="btn" onclick="Onboarding.start()" style="flex: 1;">INICIAR TOUR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ATENÇÃO: Cole aqui a URL do seu Web App do GAS após republicar
+const GAS_URL = "SUA_URL_DO_WEB_APP_AQUI";
+
+  init: async function() {
+      window.onbeforeunload = function(e) {
+        if (app.data.cart.length > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
+      };
+
+      try {
+        // API Fetch substituindo google.script.run
+        const res = await fetchAppScript('getInitialData');
+        
+        app.data.users = res.users;
+        app.data.competitors = res.competitors;
+        app.data.products = res.products;
+        
+        app.renderLogin();
+        app.renderCategories();
+      } catch (err) {
+        document.getElementById('sel-user').innerHTML = '<option>Erro ao carregar dados da API</option>';
+        document.getElementById('btn-login').innerText = "Erro de conexão";
+        app.notify("Falha ao comunicar com o servidor", "error");
+      }
+  },
+
+  const Onboarding = {
+  // CONFIGURAÇÃO DOS PASSOS
+  steps: [
+    {
+      el: '#inp-search',
+      title: 'Busca Rápida',
+      text: 'Digite o nome ou EAN aqui. A lista filtra automaticamente.',
+      position: 'bottom'
+    },
+    {
+      el: '#btn-scan',
+      title: 'Scanner',
+      text: 'Toque aqui para ler o código de barras com a câmera.',
+      position: 'bottom'
+    },
+    {
+      // AÇÃO: ABRIR MODAL DE PREÇO (SEM TECLADO)
+      el: '#modal-price .modal-box',
+      title: 'Inserindo Preços',
+      text: 'Ao selecionar um produto, esta tela aparece. Digite o valor aqui de forma simples e rápida.',
+      position: 'center',
+      action: 'openPrice' 
+    },
+    {
+      el: '.btn-pill', 
+      title: 'Itens da Lista',
+      text: 'Veja quantos itens coletou aqui. Vamos clicar para ver os detalhes da lista.',
+      position: 'bottomLeft',
+      action: 'closeModals' 
+    },
+    {
+      el: '#fake-item-demo', 
+      title: 'Gerenciando Itens',
+      text: 'Na lista, use o Lápis para editar o preço ou o X vermelho para excluir o item caso tenha errado.',
+      position: 'bottom', 
+      action: 'openCart' 
+    },
+    {
+      el: '.bottom-bar', 
+      title: 'Ações Finais',
+      text: 'Use "Limpar" para apagar tudo ou "Salvar Dados" para enviar sua pesquisa para o banco de dados.',
+      position: 'top',
+      action: 'keepCart' 
+    },
+    {
+      el: '#modal-success .modal-box', 
+      title: 'Relatórios',
+      text: 'Após salvar, você gera PDFs ou envia para o WhatsApp instantaneamente!',
+      position: 'center',
+      action: 'showReport' 
+    }
+  ],
+  
+  currentStep: 0,
+
+  checkFirstTime: function() {
+    const hasSeen = localStorage.getItem('precify_tour_done_v8');
+    if (!hasSeen) {
+       setTimeout(() => { document.getElementById('modal-welcome').classList.add('open'); }, 800);
+    }
+  },
+
+  dismissWelcome: function() {
+    document.getElementById('modal-welcome').classList.remove('open');
+    localStorage.setItem('precify_tour_done_v8', 'true');
+  },
+
+  start: function() {
+    document.getElementById('modal-welcome').classList.remove('open');
+    this.currentStep = 0;
+    
+    // Ativa Bloqueador e UI do Tour
+    document.getElementById('tour-blocker').classList.add('active');
+    document.getElementById('tour-tooltip').classList.add('active');
+    document.getElementById('tour-spotlight').classList.add('active');
+    
+    this.renderStep();
+  },
+
+  renderStep: function() {
+    const step = this.steps[this.currentStep];
+    
+    // --- ESTADOS ---
+    if (step.action !== 'openPrice' && step.action !== 'showReport' && step.action !== 'openCart' && step.action !== 'keepCart') {
+        this.resetViewToList();
+    }
+
+    if (step.action === 'openPrice') {
+        document.getElementById('modal-price').classList.add('open');
+        // CORREÇÃO CRÍTICA: Removemos o .focus() e garantimos que o teclado NÃO abra
+        const input = document.getElementById('inp-price-raw');
+        if(input) input.blur(); 
+        
+    } else if (step.action === 'openCart') {
+        app.showScreen('view-cart'); 
+        const container = document.getElementById('cart-container');
+        container.innerHTML = `
+          <div id="fake-item-demo" class="product-card" style="border: 2px dashed var(--primary);">
+            <div class="prod-info">
+              <div class="prod-name">Produto Exemplo (Demo)</div>
+              <div style="font-size:0.75rem; color:var(--text-med);">Bebidas</div>
+              <div class="prod-ean" style="color:var(--money); font-weight:bold;">R$ 10,00</div>
+            </div>
+            <div style="display:flex; gap:15px;">
+               <div class="prod-action" style="color:var(--text-high);">✎</div>
+               <div class="prod-action" style="color:#ef4444;">✖</div>
+            </div>
+          </div>
+        `;
+    
+    } else if (step.action === 'showReport') {
+        this.resetViewToList();
+        document.getElementById('modal-success').classList.add('open');
+    }
+
+    // --- RENDER ---
+    setTimeout(() => {
+        let target = document.querySelector(step.el);
+        this.highlightElement(target, step);
+    }, 150);
+
+    document.getElementById('tour-title').innerText = step.title;
+    document.getElementById('tour-text').innerText = step.text;
+    document.getElementById('tour-step').innerText = (this.currentStep + 1) + '/' + this.steps.length;
+    
+    const btnPrev = document.getElementById('btn-tour-prev');
+    const btnNext = document.getElementById('btn-tour-next');
+    btnPrev.style.display = this.currentStep === 0 ? 'none' : 'block';
+    btnNext.innerText = this.currentStep === this.steps.length - 1 ? 'Concluir' : 'Próximo';
+  },
+
+  resetViewToList: function() {
+     document.getElementById('modal-price').classList.remove('open');
+     document.getElementById('modal-success').classList.remove('open');
+     if(document.getElementById('view-cart').classList.contains('active')) {
+         app.showScreen('view-list'); 
+         app.renderProducts(app.data.products); 
+     }
+  },
+
+  highlightElement: function(target, step) {
+    if(!target) return;
+    target.scrollIntoView({behavior: "smooth", block: "center", inline: "center"});
+
+    const rect = target.getBoundingClientRect();
+    const spot = document.getElementById('tour-spotlight');
+    const tip = document.getElementById('tour-tooltip');
+    
+    const padding = 10;
+    spot.style.width = (rect.width + padding) + 'px';
+    spot.style.height = (rect.height + padding) + 'px';
+    spot.style.top = (rect.top + window.scrollY - padding/2) + 'px';
+    spot.style.left = (rect.left + window.scrollX - padding/2) + 'px';
+    
+    const tipRect = tip.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    let leftPos;
+    if (step.position === 'bottomLeft') {
+        leftPos = rect.left - 200; 
+    } else {
+        leftPos = rect.left + (rect.width / 2) - (tipRect.width / 2);
+    }
+
+    if (leftPos < 10) leftPos = 10;
+    if (leftPos + tipRect.width > viewportWidth) leftPos = viewportWidth - tipRect.width - 10;
+
+    let topPos;
+    let preferred = step.position || 'bottom';
+    
+    if (step.action === 'showReport' || step.action === 'openPrice') preferred = 'force-center';
+
+    const gap = 20;
+
+    if (preferred === 'top') {
+        topPos = rect.top - tipRect.height - gap;
+        if (topPos < 10) topPos = rect.bottom + gap;
+    } else if (preferred === 'bottom' || preferred === 'bottomLeft') {
+        topPos = rect.bottom + gap;
+        if (topPos + tipRect.height > viewportHeight) topPos = rect.top - tipRect.height - gap;
+    } else if (preferred === 'force-center') {
+        topPos = (viewportHeight / 2) + (rect.height / 2) + gap; 
+    } 
+    
+    if (topPos < 10) topPos = 10;
+    if (topPos + tipRect.height > viewportHeight) topPos = viewportHeight - tipRect.height - 10;
+
+    tip.style.top = (topPos + window.scrollY) + 'px';
+    tip.style.left = leftPos + 'px';
+  },
+
+  next: function() {
+    if (this.currentStep < this.steps.length - 1) {
+      this.currentStep++;
+      this.renderStep();
+    } else {
+      this.finish();
+    }
+  },
+
+  prev: function() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      this.renderStep();
+    }
+  },
+
+  skip: function() {
+    this.finish();
+  },
+
+  finish: function() {
+    this.resetViewToList(); 
+    
+    document.getElementById('tour-blocker').classList.remove('active'); // Remove escudo
+    document.getElementById('tour-tooltip').classList.remove('active');
+    document.getElementById('tour-spotlight').classList.remove('active');
+    
+    localStorage.setItem('precify_tour_done_v8', 'true');
+    
+    if(typeof app !== 'undefined') {
+        app.notify("Pronto! Agora é com você. 🚀", "success");
+    }
+  }
+};
+
+const app = {
+  // --- DADOS E ESTADO ---
+  data: {
+    users: [],
+    competitors: [],
+    products: [],
+    cart: [],
+    currentUser: '',
+    currentCompetitor: '',
+    sessionId: Math.random().toString(36).substring(7)
+  },
+
+  state: {
+    scanning: false,
+    selectedProduct: null,
+    editingIndex: null,
+    scannerObj: null,
+    cacheDuration: 7 * 24 * 60 * 60 * 1000,
+    selectedCategories: [],
+    
+    // Controle de Paginação e Transação
+    currentList: [],      
+    displayedCount: 50,   
+    itemsPerBatch: 50,
+    lastTransaction: null
+  },
+
+  // --- INICIALIZAÇÃO ---
+  init: function() {
+    window.onbeforeunload = function(e) {
+      if (app.data.cart.length > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      app.data.users = res.users;
+      app.data.competitors = res.competitors;
+      app.data.products = res.products;
+      
+      app.renderLogin();
+      app.renderCategories();
+      
+    }).getInitialData();
+  },
+
+  // --- LÓGICA DE CATEGORIAS (FILTRO) ---
+  renderCategories: function() {
+    const container = document.getElementById('cat-container');
+    if(!container) return;
+
+    const rawCats = this.data.products.map(function(p) { return p.category ? String(p.category).trim() : ""; });
+    const cats = [...new Set(rawCats)].filter(function(c) { return c !== ""; }).sort();
+    
+    if (cats.length === 0) {
+      container.style.display = 'none';
+      return;
+    } else {
+      container.style.display = 'flex';
+    }
+
+    container.innerHTML = cats.map(function(c) {
+      const safeName = c.replace(/"/g, '&quot;');
+      return '<div class="cat-tag" data-val="' + safeName + '" onclick="app.toggleCategory(this)">' + c + '</div>';
+    }).join('');
+    
+    this.updateCategoryVisuals();
+  },
+
+  toggleCategory: function(el) {
+    const cat = el.getAttribute('data-val');
+    if (!cat) return;
+
+    const idx = this.state.selectedCategories.indexOf(cat);
+    
+    if (idx > -1) {
+      this.state.selectedCategories.splice(idx, 1);
+    } else {
+      this.state.selectedCategories.push(cat);
+    }
+
+    this.updateCategoryVisuals();
+    this.filterProducts();
+  },
+
+  updateCategoryVisuals: function() {
+    const allTags = document.querySelectorAll('.cat-tag');
+    allTags.forEach(function(el) {
+       const catName = el.getAttribute('data-val');
+       if (app.state.selectedCategories.includes(catName)) {
+         el.classList.add('active');
+       } else {
+         el.classList.remove('active');
+       }
+    });
+  },
+
+  filterProducts: function() {
+    const rawTerm = document.getElementById('inp-search').value;
+    const term = rawTerm ? rawTerm.toLowerCase().trim() : '';
+    const activeCats = this.state.selectedCategories;
+
+    // Compilação do Regex: Trata o '%' como wildcard (.*) e escapa outros caracteres perigosos
+    let searchRegex = null;
+    if (term) {
+      const parts = term.split('%').map(function(part) {
+        return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+      });
+      searchRegex = new RegExp(parts.join('.*'), 'i');
+    }
+
+    const filtered = this.data.products.filter(function(p) {
+      const pName = p.name ? String(p.name).toLowerCase() : '';
+      const pEan = p.ean ? String(p.ean).toLowerCase() : '';
+      const pCat = p.category ? String(p.category).trim() : '';
+
+      // Avaliação de Regex ao invés de strict .includes()
+      let matchText = true;
+      if (searchRegex) {
+        matchText = searchRegex.test(pName) || searchRegex.test(pEan);
+      }
+      
+      const matchCat = activeCats.length === 0 || activeCats.includes(pCat);
+      
+      return matchText && matchCat;
+    });
+
+    this.renderProducts(filtered);
+    
+    if (activeCats.length > 0 && filtered.length === 0) {
+       this.notify("Nenhum produto encontrado neste setor.", "info");
+    }
+  },
+
+  // --- CACHE ---
+  saveCache: function() {
+    if (!this.data.currentCompetitor) return;
+    let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
+    masterCache[this.data.currentCompetitor] = {
+      timestamp: Date.now(),
+      cart: this.data.cart
+    };
+    localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
+  },
+
+  loadCacheForStore: function(storeName) {
+    let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
+    const storeData = masterCache[storeName];
+
+    if (storeData) {
+      const now = Date.now();
+      if (now - storeData.timestamp < this.state.cacheDuration) {
+        let rawList = storeData.cart || [];
+        this.data.cart = rawList.map(function(item) {
+            item.price = Math.abs(item.price);
+            return item;
+        });
+        if (this.data.cart.length > 0) {
+           this.notify("Cache recuperado: " + this.data.cart.length + " itens", 'info');
+        }
+      } else {
+        this.data.cart = [];
+        delete masterCache[storeName];
+        localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
+      }
+    } else {
+      this.data.cart = [];
+    }
+  },
+
+  clearCurrentStoreCache: function() {
+    if (!this.data.currentCompetitor) return;
+    let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
+    delete masterCache[this.data.currentCompetitor];
+    localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
+  },
+
+  // --- LOGIN ---
+  renderLogin: function() {
+    const selUser = document.getElementById('sel-user');
+    const btnLogin = document.getElementById('btn-login');
+    const chkRemember = document.getElementById('chk-remember');
+
+    if (this.data.users.length > 0) {
+      selUser.innerHTML = '<option value="" disabled selected>Selecione...</option>' + 
+                          this.data.users.map(function(u) { return '<option>' + u + '</option>'; }).join('');
+      btnLogin.disabled = false;
+      btnLogin.innerText = "INICIAR";
+    } else {
+      selUser.innerHTML = '<option>Erro ao carregar dados</option>';
+      btnLogin.innerText = "Erro de conexão";
+    }
+
+    const savedUser = localStorage.getItem('coleta_pro_user_pref');
+    if (savedUser) {
+      selUser.value = savedUser;
+      if (selUser.value === savedUser) chkRemember.checked = true;
+      else selUser.value = "";
+    }
+    
+    document.addEventListener('click', function(e) {
+        const wrapper = document.querySelector('.dropdown-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            const list = document.getElementById('list-competitors-custom');
+            if(list) list.classList.remove('open');
+        }
+    });
+  },
+
+  login: function() {
+    this.data.currentUser = document.getElementById('sel-user').value;
+    this.data.currentCompetitor = document.getElementById('sel-competitor').value;
+    const isRemember = document.getElementById('chk-remember').checked;
+    
+    if(!this.data.currentUser || !this.data.currentCompetitor) {
+      return this.notify('Selecione Usuário e Concorrente.', 'error');
+    }
+    
+    if (!this.data.competitors.includes(this.data.currentCompetitor)) {
+        return this.notify('Concorrente inválido. Selecione da lista.', 'error');
+    }
+
+    if (isRemember) localStorage.setItem('coleta_pro_user_pref', this.data.currentUser);
+    else localStorage.removeItem('coleta_pro_user_pref');
+
+    this.loadCacheForStore(this.data.currentCompetitor);
+
+    this.state.selectedCategories = [];
+    document.querySelectorAll('.cat-tag').forEach(function(el) { el.classList.remove('active'); });
+    document.getElementById('inp-search').value = '';
+
+    document.getElementById('lbl-competitor').innerText = this.data.currentCompetitor;
+    this.showScreen('view-list');
+    this.renderProducts(this.data.products);
+    this.updateCartCount();
+
+    if(typeof Onboarding !== 'undefined') Onboarding.checkFirstTime();
+  },
+
+  showScreen: function(id) {
+    document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    
+    // Mostra a lâmpada APENAS na tela principal de lista
+    const btnFeed = document.getElementById('btn-feedback');
+    if (id === 'view-list') {
+        btnFeed.style.display = 'flex';
+    } else {
+        btnFeed.style.display = 'none';
+    }
+  },
+
+  // --- SELETOR DE CONCORRENTE ---
+  filterCompetitors: function() {
+    const input = document.getElementById('sel-competitor');
+    const listDiv = document.getElementById('list-competitors-custom');
+    const term = input.value.toLowerCase();
+    
+    const filtered = this.data.competitors.filter(function(c) { return c.toLowerCase().includes(term); });
+    
+    if (filtered.length === 0) {
+      listDiv.innerHTML = '<div class="dropdown-item" style="cursor:default; color:#ef4444;">Nenhum encontrado</div>';
+      listDiv.classList.add('open');
+      return;
+    }
+
+    listDiv.innerHTML = filtered.map(function(c) {
+      return '<div class="dropdown-item" onclick="app.selectCompetitor(\'' + c + '\')">' + c + '</div>';
+    }).join('');
+    
+    listDiv.classList.add('open');
+  },
+
+  selectCompetitor: function(name) {
+    const input = document.getElementById('sel-competitor');
+    const listDiv = document.getElementById('list-competitors-custom');
+    
+    input.value = name;
+    this.data.currentCompetitor = name;
+    listDiv.classList.remove('open');
+  },
+
+  // --- PRODUTOS & SCROLL ---
+  renderProducts: function(list) {
+    this.state.currentList = list;
+    this.state.displayedCount = this.state.itemsPerBatch;
+    
+    const container = document.getElementById('list-container');
+    
+    if(list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">Nenhum produto encontrado.</div>';
+        return;
+    }
+
+    const firstBatch = list.slice(0, this.state.displayedCount);
+    
+    container.innerHTML = firstBatch.map(function(p, idx) {
+      return `
+      <div class="product-card" onclick="app.clickProduct(${idx})">
+        <img src="${p.img}" class="prod-img" loading="lazy">
+        <div class="prod-info">
+          <div class="prod-name">${p.name}</div>
+          <div class="prod-ean">${p.ean}</div>
+          <div style="font-size:0.75rem; color:var(--primary); margin-top:4px;">${p.category}</div>
+        </div>
+        <div class="prod-action">➜</div>
+      </div>
+      `;
+    }).join('');
+
+    container.onscroll = null; 
+    
+    if (list.length > this.state.displayedCount) {
+        container.onscroll = function() {
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+                app.loadMore();
+            }
+        };
+    }
+  },
+
+  loadMore: function() {
+    const fullList = this.state.currentList;
+    const current = this.state.displayedCount;
+    
+    if (current >= fullList.length) return;
+
+    const nextBatch = fullList.slice(current, current + this.state.itemsPerBatch);
+    const container = document.getElementById('list-container');
+
+    const newHtml = nextBatch.map(function(p, idx) {
+        const realIdx = current + idx;
+        return `
+        <div class="product-card" onclick="app.clickProduct(${realIdx})">
+            <img src="${p.img}" class="prod-img" loading="lazy">
+            <div class="prod-info">
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-ean">${p.ean}</div>
+            <div style="font-size:0.75rem; color:var(--primary); margin-top:4px;">${p.category}</div>
+            </div>
+            <div class="prod-action">➜</div>
+        </div>
+        `;
+    }).join('');
+
+    container.insertAdjacentHTML('beforeend', newHtml);
+    this.state.displayedCount += this.state.itemsPerBatch;
+  },
+
+  clickProduct: function(idx) {
+    const prod = this.state.currentList[idx];
+    if (prod) {
+        this.openPriceModal(null, 0, null, prod);
+    }
+  },
+
+  // --- SCANNER ---
+  toggleScanner: function() {
+    const readerDiv = document.getElementById('reader');
+    const btnScan = document.getElementById('btn-scan');
+
+    if (this.state.scanning) {
+      if(this.state.scannerObj) {
+        this.state.scannerObj.stop().then(function() {
+          app.state.scannerObj.clear();
+          readerDiv.style.display = 'none';
+          app.state.scanning = false;
+          btnScan.classList.remove('active');
+          btnScan.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>';
+        });
+      }
+      return;
+    }
+
+    this.state.scanning = true;
+    readerDiv.style.display = 'block';
+    btnScan.classList.add('active');
+    btnScan.innerText = 'X';
+
+    this.state.scannerObj = new Html5Qrcode("reader");
+    const config = { fps: 15, qrbox: { width: 280, height: 100 }, aspectRatio: 1.0 };
+    
+    this.state.scannerObj.start(
+      { facingMode: "environment" }, config, 
+      function(decodedText) {
+        app.notify("Código lido!", "success");
+        app.toggleScanner(); 
+        app.handleScan(decodedText);
+      }
+    ).catch(function(err) {
+      console.error(err);
+      app.notify("Erro na câmera.", "error");
+      app.toggleScanner();
+    });
+  },
+
+  handleScan: function(code) {
+    const prod = this.data.products.find(function(p) { return p.ean == code; });
+    if (prod) {
+      this.openPriceModal(prod.ean);
+    } else {
+      this.notify("Produto não encontrado (EAN: " + code + ")", "error");
+    }
+  },
+
+  // --- PREÇO E MODAL ---
+  openPriceModal: function(ean, existingPrice, indexToEdit, directProduct) {
+    existingPrice = existingPrice || 0;
+    indexToEdit = (indexToEdit === undefined) ? null : indexToEdit;
+    directProduct = directProduct || null;
+
+    let prod;
+    if (directProduct) {
+      prod = directProduct;
+    } else if (ean) {
+      prod = this.data.products.find(function(p) { return p.ean == ean; });
+    } else if (indexToEdit !== null && this.data.cart[indexToEdit]) {
+      prod = this.data.cart[indexToEdit];
+    }
+    
+    if (!prod) return this.notify("Produto não identificado.", "error");
+
+    this.state.selectedProduct = prod;
+    this.state.editingIndex = indexToEdit;
+    
+    document.getElementById('modal-prod-name').innerText = prod.name;
+    document.getElementById('modal-prod-img').src = prod.img;
+    
+    const initialRaw = existingPrice ? Math.round(existingPrice * 100) : '';
+    document.getElementById('inp-price-raw').value = initialRaw;
+    this.maskPrice(String(initialRaw));
+    
+    document.getElementById('modal-price').classList.add('open');
+    setTimeout(function() { document.getElementById('inp-price-raw').focus(); }, 300);
+  },
+
+  maskPrice: function(val) {
+    if(!val) {
+        document.getElementById('display-price').innerText = 'R$ 0,00';
+        return;
+    }
+    let num = val.toString().replace(/\D/g, "");
+    let absVal = Math.abs(Number(num));
+    let formatted = (absVal / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    document.getElementById('display-price').innerText = formatted;
+  },
+
+  confirmPrice: function() {
+    const raw = document.getElementById('inp-price-raw').value;
+    const cleanRaw = raw.toString().replace(/\D/g, "");
+    if (!cleanRaw) return this.notify("Digite um valor válido.", "error");
+    
+    const price = Math.abs(Number(cleanRaw) / 100);
+    const baseProduct = this.state.selectedProduct; 
+
+    if (this.state.editingIndex !== null) {
+      this.data.cart[this.state.editingIndex].price = price;
+      if(!this.data.cart[this.state.editingIndex].category) {
+          this.data.cart[this.state.editingIndex].category = baseProduct.category || 'Geral';
+      }
+      this.notify("Item atualizado!", "success");
+      if(document.getElementById('view-cart').classList.contains('active')) {
+          this.toggleCart();
+      }
+    } else {
+      this.data.cart.push({ 
+        name: baseProduct.name,
+        ean: baseProduct.ean,
+        img: baseProduct.img,
+        price: price, 
+        competitor: this.data.currentCompetitor,
+        category: baseProduct.category || 'Geral'
+      });
+      this.notify("Item adicionado à lista!", "success");
+    }
+    
+    this.saveCache();
+    this.updateCartCount();
+    this.closeModal();
+  },
+
+  closeModal: function() {
+    document.getElementById('modal-price').classList.remove('open');
+    this.state.editingIndex = null;
+  },
+
+  // --- CARRINHO ---
+  updateCartCount: function() {
+    document.getElementById('cart-count').innerText = this.data.cart.length;
+  },
+
+  toggleCart: function() {
+    this.showScreen('view-cart');
+    const container = document.getElementById('cart-container');
+    
+    if (this.data.cart.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">Sua lista está vazia.</div>';
+      return;
+    }
+
+    container.innerHTML = this.data.cart.map(function(item, idx) {
+      return `
+      <div class="product-card">
+        <div class="prod-info">
+          <div class="prod-name">${item.name}</div>
+          <div style="font-size:0.75rem; color:var(--text-med);">${item.category || ''}</div>
+          <div class="prod-ean" style="color:var(--money); font-weight:bold;">
+            ${item.price.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}
+          </div>
+        </div>
+        <div style="display:flex; gap:15px;">
+           <div class="prod-action" onclick="app.editCartItem(${idx})" style="color:var(--text-high); cursor:pointer;">✎</div>
+           <div class="prod-action" onclick="app.removeFromCart(${idx})" style="color:#ef4444; cursor:pointer;">✖</div>
+        </div>
+      </div>
+      `;
+    }).join('');
+  },
+
+  editCartItem: function(idx) {
+    const item = this.data.cart[idx];
+    this.openPriceModal(item.ean, item.price, idx);
+  },
+
+  removeFromCart: function(idx) {
+    this.ask("Deseja remover este item da lista?", function() {
+      app.data.cart.splice(idx, 1);
+      app.saveCache();
+      app.toggleCart();
+      app.updateCartCount();
+      app.notify("Item removido.", "info");
+    });
+  },
+
+  showList: function() {
+    this.showScreen('view-list');
+  },
+
+  clearCart: function() {
+    this.ask("Tem certeza que deseja limpar toda a lista desta loja?", function() {
+      app.data.cart = [];
+      app.clearCurrentStoreCache();
+      app.updateCartCount();
+      app.showScreen('view-list');
+      app.notify("Lista limpa.", "info");
+    });
+  },
+
+  // --- SALVAMENTO E FINALIZAÇÃO ---
+  startQueueProcess: function() {
+    if (this.data.cart.length === 0) return this.notify("A lista está vazia.", "error");
+    document.getElementById('modal-queue').classList.add('open');
+    this.pollQueue(true);
+  },
+
+  pollQueue: async function(isFirstCall) {
+    const payloadJson = isFirstCall ? JSON.stringify(this.data.cart) : null;
+    const msgEl = document.getElementById('queue-msg');
+    
+    try {
+      const res = await fetchAppScript('processQueueRequest', {
+        sessionId: this.data.sessionId,
+        user: this.data.currentUser,
+        itemsJson: payloadJson
+      });
+        
+      if (res.status === 'DONE') {
+        msgEl.innerText = "DADOS GRAVADOS!";
+        
+        app.state.lastTransaction = {
+             items: JSON.parse(JSON.stringify(app.data.cart)),
+             competitor: app.data.currentCompetitor,
+             user: app.data.currentUser,
+             date: new Date().toLocaleDateString('pt-BR')
+        };
+        
+        app.clearCurrentStoreCache();
+        
+        setTimeout(function() {
+          document.getElementById('modal-queue').classList.remove('open');
+          document.getElementById('modal-success').classList.add('open');
+        }, 1000);
+
+      } else if (res.status === 'WAITING' || res.status === 'QUEUED') {
+        msgEl.innerText = res.message + " (Pos: " + res.position + ")";
+        setTimeout(function() { app.pollQueue(false); }, 3000);
+      } else {
+        msgEl.innerText = "ERRO: " + res.message;
+        msgEl.style.color = "#ef4444";
+      }
+    } catch (err) {
+      msgEl.innerText = "Erro de conexão. Tentando novamente...";
+      setTimeout(function() { app.pollQueue(false); }, 5000);
+    }
+  },
+
+  finishProcess: function() {
+    document.getElementById('modal-success').classList.remove('open');
+    this.data.cart = [];
+    this.state.lastTransaction = null;
+    this.updateCartCount();
+    this.showScreen('view-list');
+  },
+
+  // --- WHATSAPP (CORRIGIDO SEM EMOJIS BUGADOS) ---
+  sendWhatsapp: function() {
+    if (!this.state.lastTransaction) return;
+    
+    const t = this.state.lastTransaction;
+    const items = t.items;
+    const grouped = {};
+    
+    items.forEach(function(i) {
+       const c = i.category || 'Geral';
+       if(!grouped[c]) grouped[c] = [];
+       grouped[c].push(i);
+    });
+
+    // CABEÇALHO LIMPO (USANDO TEXTO PADRÃO)
+    let text = "*RELATORIO DE PESQUISA*\n\n";
+    text += ">> LOJA: " + t.competitor + "\n";
+    text += ">> USER: " + t.user + "\n";
+    text += ">> DATA: " + t.date + "\n\n";
+    
+    Object.keys(grouped).sort().forEach(function(cat) {
+       const list = grouped[cat];
+       // TÍTULO DO SETOR
+       text += "*" + cat.toUpperCase() + "* (" + list.length + ")\n";
+       
+       list.forEach(function(i) {
+          const price = i.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+          // FORMATO: - NOME: R$ PREÇO
+          text += "- " + i.name + ": R$ " + price + "\n";
+       });
+       text += "\n";
+    });
+    
+    const url = "https://wa.me/?text=" + encodeURIComponent(text);
+    window.open(url, '_blank');
+  },
+
+  downloadPdf: async function() {
+    if (!this.state.lastTransaction) return;
+    
+    const btn = document.querySelector('.btn-pdf');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = 'Gerando...';
+    btn.disabled = true;
+
+    const payloadStr = JSON.stringify(this.state.lastTransaction);
+
+    try {
+      const res = await fetchAppScript('generatePdfReport', { dataJson: payloadStr });
+      
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+         
+      if(res.status === 'OK') {
+        const link = document.createElement('a');
+        link.href = "data:application/pdf;base64," + res.base64;
+        link.download = res.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        app.notify("PDF baixado!", "success");
+      } else {
+        app.notify("Erro ao gerar PDF", "error");
+      }
+    } catch (err) {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      app.notify("Erro de conexão", "error");
+    }
+  },
+
+  notify: function(msg, type) {
+    if (!type) type = 'info';
+    const container = document.getElementById('toast-container');
+    if(!container) return;
+    
+    const el = document.createElement('div');
+    el.className = 'toast ' + type; 
+    
+    let icon = (type === 'success') ? '✔' : (type === 'error') ? '✖' : 'ℹ';
+    el.innerHTML = '<span style="font-weight:bold;">' + icon + '</span><span>' + msg + '</span>';
+    
+    container.appendChild(el);
+    requestAnimationFrame(function() { 
+        el.style.opacity = '1'; 
+        el.style.transform = 'translateY(0)'; 
+    });
+    setTimeout(function() {
+      el.style.opacity = '0'; 
+      el.style.transform = 'translateY(-20px)';
+      setTimeout(function() { el.remove(); }, 300);
+    }, 3000);
+  },
+
+  ask: function(msg, callback) {
+    const modal = document.getElementById('modal-confirm');
+    document.getElementById('confirm-msg').innerText = msg;
+    const btnYes = document.getElementById('btn-confirm-yes');
+    const newBtn = btnYes.cloneNode(true);
+    btnYes.parentNode.replaceChild(newBtn, btnYes);
+    newBtn.onclick = function() { 
+        callback(); 
+        app.closeConfirm(); 
+    };
+    modal.classList.add('open');
+  },
+
+  closeConfirm: function() {
+    document.getElementById('modal-confirm').classList.remove('open');
+  },
+
+  attemptGoBack: function() {
+    if (this.data.cart.length > 0) {
+      document.getElementById('exit-store-name').innerText = this.data.currentCompetitor;
+      document.getElementById('exit-item-count').innerText = this.data.cart.length;
+      document.getElementById('modal-exit').classList.add('open');
+    } else {
+      this.confirmExit();
+    }
+  },
+
+  cancelExit: function() {
+    document.getElementById('modal-exit').classList.remove('open');
+  },
+
+  confirmExit: function() {
+    document.getElementById('modal-exit').classList.remove('open');
+    this.saveCache();
+    this.data.cart = [];
+    this.data.currentUser = '';
+    this.data.currentCompetitor = '';
+    this.showScreen('view-login');
+    this.renderLogin();
+  },
+
+  // --- FEEDBACK / SUGESTÕES ---
+  openFeedback: function() {
+    document.getElementById('inp-feedback').value = '';
+    document.getElementById('modal-feedback').classList.add('open');
+    setTimeout(function(){ document.getElementById('inp-feedback').focus(); }, 300);
+  },
+
+  closeFeedback: function() {
+    document.getElementById('modal-feedback').classList.remove('open');
+  },
+
+  sendFeedback: async function() {
+    const text = document.getElementById('inp-feedback').value.trim();
+    if (!text) return this.notify("A sugestão não pode estar vazia.", "error");
+
+    const btn = document.getElementById('btn-send-feedback');
+    const originalText = btn.innerText;
+    btn.innerText = "Enviando...";
+    btn.disabled = true;
+
+    const user = this.data.currentUser || "Usuário Desconhecido";
+
+    try {
+      const res = await fetchAppScript('saveSuggestion', { user: user, text: text });
+      
+      btn.innerText = originalText;
+      btn.disabled = false;
+         
+      if(res.status === 'OK') {
+          app.closeFeedback();
+          app.notify("Sugestão enviada com sucesso! Obrigado.", "success");
+      } else {
+          app.notify("Erro: " + res.message, "error");
+      }
+    } catch (err) {
+      btn.innerText = originalText;
+      btn.disabled = false;
+      app.notify("Falha na conexão.", "error");
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    app.init();
+});
+</script>
+</body>
+</html>
