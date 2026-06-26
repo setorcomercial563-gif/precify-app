@@ -1026,125 +1026,65 @@
 </div>
 
 <script>
-
-// ATENÇÃO: Cole aqui a URL do seu Web App do GAS após republicar
+// --- 1. CONFIGURAÇÕES GERAIS E API ---
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzOPnbaiSiEMbpheDsK1jK4hVL6laIRPTvcqrcUrXNjmXH2EBCIhToO_Q1vFfIIKIfB/exec";
 
-  init: async function() {
-      window.onbeforeunload = function(e) {
-        if (app.data.cart.length > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
-      };
+// Função utilitária para requisições assíncronas (CRÍTICA para funcionar fora do GAS)
+async function fetchAppScript(action, data = {}) {
+  const payload = { action: action, ...data };
+  try {
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Evita bloqueio CORS do Google
+      redirect: 'follow'
+    });
+    return await response.json();
+  } catch (err) {
+    console.error("Erro na API:", err);
+    throw err;
+  }
+}
 
-      try {
-        // API Fetch substituindo google.script.run
-        const res = await fetchAppScript('getInitialData');
-        
-        app.data.users = res.users;
-        app.data.competitors = res.competitors;
-        app.data.products = res.products;
-        
-        app.renderLogin();
-        app.renderCategories();
-      } catch (err) {
-        document.getElementById('sel-user').innerHTML = '<option>Erro ao carregar dados da API</option>';
-        document.getElementById('btn-login').innerText = "Erro de conexão";
-        app.notify("Falha ao comunicar com o servidor", "error");
-      }
-  },
-
-  const Onboarding = {
-  // CONFIGURAÇÃO DOS PASSOS
+// --- 2. MÓDULO DE ONBOARDING ---
+const Onboarding = {
   steps: [
-    {
-      el: '#inp-search',
-      title: 'Busca Rápida',
-      text: 'Digite o nome ou EAN aqui. A lista filtra automaticamente.',
-      position: 'bottom'
-    },
-    {
-      el: '#btn-scan',
-      title: 'Scanner',
-      text: 'Toque aqui para ler o código de barras com a câmera.',
-      position: 'bottom'
-    },
-    {
-      // AÇÃO: ABRIR MODAL DE PREÇO (SEM TECLADO)
-      el: '#modal-price .modal-box',
-      title: 'Inserindo Preços',
-      text: 'Ao selecionar um produto, esta tela aparece. Digite o valor aqui de forma simples e rápida.',
-      position: 'center',
-      action: 'openPrice' 
-    },
-    {
-      el: '.btn-pill', 
-      title: 'Itens da Lista',
-      text: 'Veja quantos itens coletou aqui. Vamos clicar para ver os detalhes da lista.',
-      position: 'bottomLeft',
-      action: 'closeModals' 
-    },
-    {
-      el: '#fake-item-demo', 
-      title: 'Gerenciando Itens',
-      text: 'Na lista, use o Lápis para editar o preço ou o X vermelho para excluir o item caso tenha errado.',
-      position: 'bottom', 
-      action: 'openCart' 
-    },
-    {
-      el: '.bottom-bar', 
-      title: 'Ações Finais',
-      text: 'Use "Limpar" para apagar tudo ou "Salvar Dados" para enviar sua pesquisa para o banco de dados.',
-      position: 'top',
-      action: 'keepCart' 
-    },
-    {
-      el: '#modal-success .modal-box', 
-      title: 'Relatórios',
-      text: 'Após salvar, você gera PDFs ou envia para o WhatsApp instantaneamente!',
-      position: 'center',
-      action: 'showReport' 
-    }
+    { el: '#inp-search', title: 'Busca Rápida', text: 'Digite o nome ou EAN aqui. A lista filtra automaticamente.', position: 'bottom' },
+    { el: '#btn-scan', title: 'Scanner', text: 'Toque aqui para ler o código de barras com a câmera.', position: 'bottom' },
+    { el: '#modal-price .modal-box', title: 'Inserindo Preços', text: 'Ao selecionar um produto, esta tela aparece. Digite o valor aqui de forma simples e rápida.', position: 'center', action: 'openPrice' },
+    { el: '.btn-pill', title: 'Itens da Lista', text: 'Veja quantos itens coletou aqui. Vamos clicar para ver os detalhes da lista.', position: 'bottomLeft', action: 'closeModals' },
+    { el: '#fake-item-demo', title: 'Gerenciando Itens', text: 'Na lista, use o Lápis para editar o preço ou o X vermelho para excluir o item caso tenha errado.', position: 'bottom', action: 'openCart' },
+    { el: '.bottom-bar', title: 'Ações Finais', text: 'Use "Limpar" para apagar tudo ou "Salvar Dados" para enviar sua pesquisa para o banco de dados.', position: 'top', action: 'keepCart' },
+    { el: '#modal-success .modal-box', title: 'Relatórios', text: 'Após salvar, você gera PDFs ou envia para o WhatsApp instantaneamente!', position: 'center', action: 'showReport' }
   ],
-  
   currentStep: 0,
-
   checkFirstTime: function() {
     const hasSeen = localStorage.getItem('precify_tour_done_v8');
     if (!hasSeen) {
        setTimeout(() => { document.getElementById('modal-welcome').classList.add('open'); }, 800);
     }
   },
-
   dismissWelcome: function() {
     document.getElementById('modal-welcome').classList.remove('open');
     localStorage.setItem('precify_tour_done_v8', 'true');
   },
-
   start: function() {
     document.getElementById('modal-welcome').classList.remove('open');
     this.currentStep = 0;
-    
-    // Ativa Bloqueador e UI do Tour
     document.getElementById('tour-blocker').classList.add('active');
     document.getElementById('tour-tooltip').classList.add('active');
     document.getElementById('tour-spotlight').classList.add('active');
-    
     this.renderStep();
   },
-
   renderStep: function() {
     const step = this.steps[this.currentStep];
-    
-    // --- ESTADOS ---
     if (step.action !== 'openPrice' && step.action !== 'showReport' && step.action !== 'openCart' && step.action !== 'keepCart') {
         this.resetViewToList();
     }
-
     if (step.action === 'openPrice') {
         document.getElementById('modal-price').classList.add('open');
-        // CORREÇÃO CRÍTICA: Removemos o .focus() e garantimos que o teclado NÃO abra
         const input = document.getElementById('inp-price-raw');
         if(input) input.blur(); 
-        
     } else if (step.action === 'openCart') {
         app.showScreen('view-cart'); 
         const container = document.getElementById('cart-container');
@@ -1161,28 +1101,22 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbzOPnbaiSiEMbpheDsK1jK4
             </div>
           </div>
         `;
-    
     } else if (step.action === 'showReport') {
         this.resetViewToList();
         document.getElementById('modal-success').classList.add('open');
     }
-
-    // --- RENDER ---
     setTimeout(() => {
         let target = document.querySelector(step.el);
         this.highlightElement(target, step);
     }, 150);
-
     document.getElementById('tour-title').innerText = step.title;
     document.getElementById('tour-text').innerText = step.text;
     document.getElementById('tour-step').innerText = (this.currentStep + 1) + '/' + this.steps.length;
-    
     const btnPrev = document.getElementById('btn-tour-prev');
     const btnNext = document.getElementById('btn-tour-next');
     btnPrev.style.display = this.currentStep === 0 ? 'none' : 'block';
     btnNext.innerText = this.currentStep === this.steps.length - 1 ? 'Concluir' : 'Próximo';
   },
-
   resetViewToList: function() {
      document.getElementById('modal-price').classList.remove('open');
      document.getElementById('modal-success').classList.remove('open');
@@ -1191,42 +1125,29 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbzOPnbaiSiEMbpheDsK1jK4
          app.renderProducts(app.data.products); 
      }
   },
-
   highlightElement: function(target, step) {
     if(!target) return;
     target.scrollIntoView({behavior: "smooth", block: "center", inline: "center"});
-
     const rect = target.getBoundingClientRect();
     const spot = document.getElementById('tour-spotlight');
     const tip = document.getElementById('tour-tooltip');
-    
     const padding = 10;
     spot.style.width = (rect.width + padding) + 'px';
     spot.style.height = (rect.height + padding) + 'px';
     spot.style.top = (rect.top + window.scrollY - padding/2) + 'px';
     spot.style.left = (rect.left + window.scrollX - padding/2) + 'px';
-    
     const tipRect = tip.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    
     let leftPos;
-    if (step.position === 'bottomLeft') {
-        leftPos = rect.left - 200; 
-    } else {
-        leftPos = rect.left + (rect.width / 2) - (tipRect.width / 2);
-    }
-
+    if (step.position === 'bottomLeft') { leftPos = rect.left - 200; } 
+    else { leftPos = rect.left + (rect.width / 2) - (tipRect.width / 2); }
     if (leftPos < 10) leftPos = 10;
     if (leftPos + tipRect.width > viewportWidth) leftPos = viewportWidth - tipRect.width - 10;
-
     let topPos;
     let preferred = step.position || 'bottom';
-    
     if (step.action === 'showReport' || step.action === 'openPrice') preferred = 'force-center';
-
     const gap = 20;
-
     if (preferred === 'top') {
         topPos = rect.top - tipRect.height - gap;
         if (topPos < 10) topPos = rect.bottom + gap;
@@ -1236,51 +1157,26 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbzOPnbaiSiEMbpheDsK1jK4
     } else if (preferred === 'force-center') {
         topPos = (viewportHeight / 2) + (rect.height / 2) + gap; 
     } 
-    
     if (topPos < 10) topPos = 10;
     if (topPos + tipRect.height > viewportHeight) topPos = viewportHeight - tipRect.height - 10;
-
     tip.style.top = (topPos + window.scrollY) + 'px';
     tip.style.left = leftPos + 'px';
   },
-
-  next: function() {
-    if (this.currentStep < this.steps.length - 1) {
-      this.currentStep++;
-      this.renderStep();
-    } else {
-      this.finish();
-    }
-  },
-
-  prev: function() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
-      this.renderStep();
-    }
-  },
-
-  skip: function() {
-    this.finish();
-  },
-
+  next: function() { if (this.currentStep < this.steps.length - 1) { this.currentStep++; this.renderStep(); } else { this.finish(); } },
+  prev: function() { if (this.currentStep > 0) { this.currentStep--; this.renderStep(); } },
+  skip: function() { this.finish(); },
   finish: function() {
     this.resetViewToList(); 
-    
-    document.getElementById('tour-blocker').classList.remove('active'); // Remove escudo
+    document.getElementById('tour-blocker').classList.remove('active');
     document.getElementById('tour-tooltip').classList.remove('active');
     document.getElementById('tour-spotlight').classList.remove('active');
-    
     localStorage.setItem('precify_tour_done_v8', 'true');
-    
-    if(typeof app !== 'undefined') {
-        app.notify("Pronto! Agora é com você. 🚀", "success");
-    }
+    if(typeof app !== 'undefined') { app.notify("Pronto! Agora é com você. 🚀", "success"); }
   }
 };
 
+// --- 3. MÓDULO PRINCIPAL DA APLICAÇÃO ---
 const app = {
-  // --- DADOS E ESTADO ---
   data: {
     users: [],
     competitors: [],
@@ -1290,7 +1186,6 @@ const app = {
     currentCompetitor: '',
     sessionId: Math.random().toString(36).substring(7)
   },
-
   state: {
     scanning: false,
     selectedProduct: null,
@@ -1298,185 +1193,127 @@ const app = {
     scannerObj: null,
     cacheDuration: 7 * 24 * 60 * 60 * 1000,
     selectedCategories: [],
-    
-    // Controle de Paginação e Transação
     currentList: [],      
     displayedCount: 50,   
     itemsPerBatch: 50,
     lastTransaction: null
   },
 
-  // --- INICIALIZAÇÃO ---
-  init: function() {
-    window.onbeforeunload = function(e) {
-      if (app.data.cart.length > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
-    };
-
-    google.script.run.withSuccessHandler(function(res) {
-      app.data.users = res.users;
-      app.data.competitors = res.competitors;
-      app.data.products = res.products;
-      
-      app.renderLogin();
-      app.renderCategories();
-      
-    }).getInitialData();
+  init: async function() {
+      window.onbeforeunload = function(e) {
+        if (app.data.cart.length > 0) { e.preventDefault(); e.returnValue = ''; return ''; }
+      };
+      try {
+        const res = await fetchAppScript('getInitialData');
+        app.data.users = res.users;
+        app.data.competitors = res.competitors;
+        app.data.products = res.products;
+        app.renderLogin();
+        app.renderCategories();
+      } catch (err) {
+        document.getElementById('sel-user').innerHTML = '<option>Erro ao carregar dados da API</option>';
+        document.getElementById('btn-login').innerText = "Erro de conexão";
+        app.notify("Falha ao comunicar com o servidor", "error");
+      }
   },
 
-  // --- LÓGICA DE CATEGORIAS (FILTRO) ---
   renderCategories: function() {
     const container = document.getElementById('cat-container');
     if(!container) return;
-
     const rawCats = this.data.products.map(function(p) { return p.category ? String(p.category).trim() : ""; });
     const cats = [...new Set(rawCats)].filter(function(c) { return c !== ""; }).sort();
-    
-    if (cats.length === 0) {
-      container.style.display = 'none';
-      return;
-    } else {
-      container.style.display = 'flex';
-    }
-
+    if (cats.length === 0) { container.style.display = 'none'; return; } 
+    else { container.style.display = 'flex'; }
     container.innerHTML = cats.map(function(c) {
       const safeName = c.replace(/"/g, '&quot;');
       return '<div class="cat-tag" data-val="' + safeName + '" onclick="app.toggleCategory(this)">' + c + '</div>';
     }).join('');
-    
     this.updateCategoryVisuals();
   },
-
   toggleCategory: function(el) {
     const cat = el.getAttribute('data-val');
     if (!cat) return;
-
     const idx = this.state.selectedCategories.indexOf(cat);
-    
-    if (idx > -1) {
-      this.state.selectedCategories.splice(idx, 1);
-    } else {
-      this.state.selectedCategories.push(cat);
-    }
-
+    if (idx > -1) { this.state.selectedCategories.splice(idx, 1); } 
+    else { this.state.selectedCategories.push(cat); }
     this.updateCategoryVisuals();
     this.filterProducts();
   },
-
   updateCategoryVisuals: function() {
     const allTags = document.querySelectorAll('.cat-tag');
     allTags.forEach(function(el) {
        const catName = el.getAttribute('data-val');
-       if (app.state.selectedCategories.includes(catName)) {
-         el.classList.add('active');
-       } else {
-         el.classList.remove('active');
-       }
+       if (app.state.selectedCategories.includes(catName)) { el.classList.add('active'); } 
+       else { el.classList.remove('active'); }
     });
   },
-
   filterProducts: function() {
     const rawTerm = document.getElementById('inp-search').value;
     const term = rawTerm ? rawTerm.toLowerCase().trim() : '';
     const activeCats = this.state.selectedCategories;
-
-    // Compilação do Regex: Trata o '%' como wildcard (.*) e escapa outros caracteres perigosos
     let searchRegex = null;
     if (term) {
-      const parts = term.split('%').map(function(part) {
-        return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
-      });
+      const parts = term.split('%').map(function(part) { return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
       searchRegex = new RegExp(parts.join('.*'), 'i');
     }
-
     const filtered = this.data.products.filter(function(p) {
       const pName = p.name ? String(p.name).toLowerCase() : '';
       const pEan = p.ean ? String(p.ean).toLowerCase() : '';
       const pCat = p.category ? String(p.category).trim() : '';
-
-      // Avaliação de Regex ao invés de strict .includes()
       let matchText = true;
-      if (searchRegex) {
-        matchText = searchRegex.test(pName) || searchRegex.test(pEan);
-      }
-      
+      if (searchRegex) { matchText = searchRegex.test(pName) || searchRegex.test(pEan); }
       const matchCat = activeCats.length === 0 || activeCats.includes(pCat);
-      
       return matchText && matchCat;
     });
-
     this.renderProducts(filtered);
-    
-    if (activeCats.length > 0 && filtered.length === 0) {
-       this.notify("Nenhum produto encontrado neste setor.", "info");
-    }
+    if (activeCats.length > 0 && filtered.length === 0) { this.notify("Nenhum produto encontrado neste setor.", "info"); }
   },
-
-  // --- CACHE ---
   saveCache: function() {
     if (!this.data.currentCompetitor) return;
     let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
-    masterCache[this.data.currentCompetitor] = {
-      timestamp: Date.now(),
-      cart: this.data.cart
-    };
+    masterCache[this.data.currentCompetitor] = { timestamp: Date.now(), cart: this.data.cart };
     localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
   },
-
   loadCacheForStore: function(storeName) {
     let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
     const storeData = masterCache[storeName];
-
     if (storeData) {
       const now = Date.now();
       if (now - storeData.timestamp < this.state.cacheDuration) {
         let rawList = storeData.cart || [];
-        this.data.cart = rawList.map(function(item) {
-            item.price = Math.abs(item.price);
-            return item;
-        });
-        if (this.data.cart.length > 0) {
-           this.notify("Cache recuperado: " + this.data.cart.length + " itens", 'info');
-        }
+        this.data.cart = rawList.map(function(item) { item.price = Math.abs(item.price); return item; });
+        if (this.data.cart.length > 0) { this.notify("Cache recuperado: " + this.data.cart.length + " itens", 'info'); }
       } else {
         this.data.cart = [];
         delete masterCache[storeName];
         localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
       }
-    } else {
-      this.data.cart = [];
-    }
+    } else { this.data.cart = []; }
   },
-
   clearCurrentStoreCache: function() {
     if (!this.data.currentCompetitor) return;
     let masterCache = JSON.parse(localStorage.getItem('coleta_master_db') || '{}');
     delete masterCache[this.data.currentCompetitor];
     localStorage.setItem('coleta_master_db', JSON.stringify(masterCache));
   },
-
-  // --- LOGIN ---
   renderLogin: function() {
     const selUser = document.getElementById('sel-user');
     const btnLogin = document.getElementById('btn-login');
     const chkRemember = document.getElementById('chk-remember');
-
     if (this.data.users.length > 0) {
-      selUser.innerHTML = '<option value="" disabled selected>Selecione...</option>' + 
-                          this.data.users.map(function(u) { return '<option>' + u + '</option>'; }).join('');
+      selUser.innerHTML = '<option value="" disabled selected>Selecione...</option>' + this.data.users.map(function(u) { return '<option>' + u + '</option>'; }).join('');
       btnLogin.disabled = false;
       btnLogin.innerText = "INICIAR";
     } else {
       selUser.innerHTML = '<option>Erro ao carregar dados</option>';
       btnLogin.innerText = "Erro de conexão";
     }
-
     const savedUser = localStorage.getItem('coleta_pro_user_pref');
     if (savedUser) {
       selUser.value = savedUser;
       if (selUser.value === savedUser) chkRemember.checked = true;
       else selUser.value = "";
     }
-    
     document.addEventListener('click', function(e) {
         const wrapper = document.querySelector('.dropdown-wrapper');
         if (wrapper && !wrapper.contains(e.target)) {
@@ -1485,94 +1322,60 @@ const app = {
         }
     });
   },
-
   login: function() {
     this.data.currentUser = document.getElementById('sel-user').value;
     this.data.currentCompetitor = document.getElementById('sel-competitor').value;
     const isRemember = document.getElementById('chk-remember').checked;
-    
-    if(!this.data.currentUser || !this.data.currentCompetitor) {
-      return this.notify('Selecione Usuário e Concorrente.', 'error');
-    }
-    
-    if (!this.data.competitors.includes(this.data.currentCompetitor)) {
-        return this.notify('Concorrente inválido. Selecione da lista.', 'error');
-    }
-
+    if(!this.data.currentUser || !this.data.currentCompetitor) { return this.notify('Selecione Usuário e Concorrente.', 'error'); }
+    if (!this.data.competitors.includes(this.data.currentCompetitor)) { return this.notify('Concorrente inválido. Selecione da lista.', 'error'); }
     if (isRemember) localStorage.setItem('coleta_pro_user_pref', this.data.currentUser);
     else localStorage.removeItem('coleta_pro_user_pref');
-
     this.loadCacheForStore(this.data.currentCompetitor);
-
     this.state.selectedCategories = [];
     document.querySelectorAll('.cat-tag').forEach(function(el) { el.classList.remove('active'); });
     document.getElementById('inp-search').value = '';
-
     document.getElementById('lbl-competitor').innerText = this.data.currentCompetitor;
     this.showScreen('view-list');
     this.renderProducts(this.data.products);
     this.updateCartCount();
-
     if(typeof Onboarding !== 'undefined') Onboarding.checkFirstTime();
   },
-
   showScreen: function(id) {
     document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
     document.getElementById(id).classList.add('active');
-    
-    // Mostra a lâmpada APENAS na tela principal de lista
     const btnFeed = document.getElementById('btn-feedback');
-    if (id === 'view-list') {
-        btnFeed.style.display = 'flex';
-    } else {
-        btnFeed.style.display = 'none';
-    }
+    if (id === 'view-list') { btnFeed.style.display = 'flex'; } 
+    else { btnFeed.style.display = 'none'; }
   },
-
-  // --- SELETOR DE CONCORRENTE ---
   filterCompetitors: function() {
     const input = document.getElementById('sel-competitor');
     const listDiv = document.getElementById('list-competitors-custom');
     const term = input.value.toLowerCase();
-    
     const filtered = this.data.competitors.filter(function(c) { return c.toLowerCase().includes(term); });
-    
     if (filtered.length === 0) {
       listDiv.innerHTML = '<div class="dropdown-item" style="cursor:default; color:#ef4444;">Nenhum encontrado</div>';
       listDiv.classList.add('open');
       return;
     }
-
-    listDiv.innerHTML = filtered.map(function(c) {
-      return '<div class="dropdown-item" onclick="app.selectCompetitor(\'' + c + '\')">' + c + '</div>';
-    }).join('');
-    
+    listDiv.innerHTML = filtered.map(function(c) { return '<div class="dropdown-item" onclick="app.selectCompetitor(\'' + c + '\')">' + c + '</div>'; }).join('');
     listDiv.classList.add('open');
   },
-
   selectCompetitor: function(name) {
     const input = document.getElementById('sel-competitor');
     const listDiv = document.getElementById('list-competitors-custom');
-    
     input.value = name;
     this.data.currentCompetitor = name;
     listDiv.classList.remove('open');
   },
-
-  // --- PRODUTOS & SCROLL ---
   renderProducts: function(list) {
     this.state.currentList = list;
     this.state.displayedCount = this.state.itemsPerBatch;
-    
     const container = document.getElementById('list-container');
-    
     if(list.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">Nenhum produto encontrado.</div>';
         return;
     }
-
     const firstBatch = list.slice(0, this.state.displayedCount);
-    
     container.innerHTML = firstBatch.map(function(p, idx) {
       return `
       <div class="product-card" onclick="app.clickProduct(${idx})">
@@ -1586,27 +1389,19 @@ const app = {
       </div>
       `;
     }).join('');
-
     container.onscroll = null; 
-    
     if (list.length > this.state.displayedCount) {
         container.onscroll = function() {
-            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
-                app.loadMore();
-            }
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) { app.loadMore(); }
         };
     }
   },
-
   loadMore: function() {
     const fullList = this.state.currentList;
     const current = this.state.displayedCount;
-    
     if (current >= fullList.length) return;
-
     const nextBatch = fullList.slice(current, current + this.state.itemsPerBatch);
     const container = document.getElementById('list-container');
-
     const newHtml = nextBatch.map(function(p, idx) {
         const realIdx = current + idx;
         return `
@@ -1621,23 +1416,16 @@ const app = {
         </div>
         `;
     }).join('');
-
     container.insertAdjacentHTML('beforeend', newHtml);
     this.state.displayedCount += this.state.itemsPerBatch;
   },
-
   clickProduct: function(idx) {
     const prod = this.state.currentList[idx];
-    if (prod) {
-        this.openPriceModal(null, 0, null, prod);
-    }
+    if (prod) { this.openPriceModal(null, 0, null, prod); }
   },
-
-  // --- SCANNER ---
   toggleScanner: function() {
     const readerDiv = document.getElementById('reader');
     const btnScan = document.getElementById('btn-scan');
-
     if (this.state.scanning) {
       if(this.state.scannerObj) {
         this.state.scannerObj.stop().then(function() {
@@ -1650,15 +1438,12 @@ const app = {
       }
       return;
     }
-
     this.state.scanning = true;
     readerDiv.style.display = 'block';
     btnScan.classList.add('active');
     btnScan.innerText = 'X';
-
     this.state.scannerObj = new Html5Qrcode("reader");
     const config = { fps: 15, qrbox: { width: 280, height: 100 }, aspectRatio: 1.0 };
-    
     this.state.scannerObj.start(
       { facingMode: "environment" }, config, 
       function(decodedText) {
@@ -1672,111 +1457,74 @@ const app = {
       app.toggleScanner();
     });
   },
-
   handleScan: function(code) {
     const prod = this.data.products.find(function(p) { return p.ean == code; });
-    if (prod) {
-      this.openPriceModal(prod.ean);
-    } else {
-      this.notify("Produto não encontrado (EAN: " + code + ")", "error");
-    }
+    if (prod) { this.openPriceModal(prod.ean); } 
+    else { this.notify("Produto não encontrado (EAN: " + code + ")", "error"); }
   },
-
-  // --- PREÇO E MODAL ---
   openPriceModal: function(ean, existingPrice, indexToEdit, directProduct) {
     existingPrice = existingPrice || 0;
     indexToEdit = (indexToEdit === undefined) ? null : indexToEdit;
     directProduct = directProduct || null;
-
     let prod;
-    if (directProduct) {
-      prod = directProduct;
-    } else if (ean) {
-      prod = this.data.products.find(function(p) { return p.ean == ean; });
-    } else if (indexToEdit !== null && this.data.cart[indexToEdit]) {
-      prod = this.data.cart[indexToEdit];
-    }
+    if (directProduct) { prod = directProduct; } 
+    else if (ean) { prod = this.data.products.find(function(p) { return p.ean == ean; }); } 
+    else if (indexToEdit !== null && this.data.cart[indexToEdit]) { prod = this.data.cart[indexToEdit]; }
     
     if (!prod) return this.notify("Produto não identificado.", "error");
-
     this.state.selectedProduct = prod;
     this.state.editingIndex = indexToEdit;
-    
     document.getElementById('modal-prod-name').innerText = prod.name;
     document.getElementById('modal-prod-img').src = prod.img;
-    
     const initialRaw = existingPrice ? Math.round(existingPrice * 100) : '';
     document.getElementById('inp-price-raw').value = initialRaw;
     this.maskPrice(String(initialRaw));
-    
     document.getElementById('modal-price').classList.add('open');
     setTimeout(function() { document.getElementById('inp-price-raw').focus(); }, 300);
   },
-
   maskPrice: function(val) {
-    if(!val) {
-        document.getElementById('display-price').innerText = 'R$ 0,00';
-        return;
-    }
+    if(!val) { document.getElementById('display-price').innerText = 'R$ 0,00'; return; }
     let num = val.toString().replace(/\D/g, "");
     let absVal = Math.abs(Number(num));
     let formatted = (absVal / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('display-price').innerText = formatted;
   },
-
   confirmPrice: function() {
     const raw = document.getElementById('inp-price-raw').value;
     const cleanRaw = raw.toString().replace(/\D/g, "");
     if (!cleanRaw) return this.notify("Digite um valor válido.", "error");
-    
     const price = Math.abs(Number(cleanRaw) / 100);
     const baseProduct = this.state.selectedProduct; 
-
     if (this.state.editingIndex !== null) {
       this.data.cart[this.state.editingIndex].price = price;
       if(!this.data.cart[this.state.editingIndex].category) {
           this.data.cart[this.state.editingIndex].category = baseProduct.category || 'Geral';
       }
       this.notify("Item atualizado!", "success");
-      if(document.getElementById('view-cart').classList.contains('active')) {
-          this.toggleCart();
-      }
+      if(document.getElementById('view-cart').classList.contains('active')) { this.toggleCart(); }
     } else {
       this.data.cart.push({ 
-        name: baseProduct.name,
-        ean: baseProduct.ean,
-        img: baseProduct.img,
-        price: price, 
-        competitor: this.data.currentCompetitor,
-        category: baseProduct.category || 'Geral'
+        name: baseProduct.name, ean: baseProduct.ean, img: baseProduct.img, price: price, 
+        competitor: this.data.currentCompetitor, category: baseProduct.category || 'Geral'
       });
       this.notify("Item adicionado à lista!", "success");
     }
-    
     this.saveCache();
     this.updateCartCount();
     this.closeModal();
   },
-
   closeModal: function() {
     document.getElementById('modal-price').classList.remove('open');
     this.state.editingIndex = null;
   },
-
-  // --- CARRINHO ---
-  updateCartCount: function() {
-    document.getElementById('cart-count').innerText = this.data.cart.length;
-  },
-
+  updateCartCount: function() { document.getElementById('cart-count').innerText = this.data.cart.length; },
   toggleCart: function() {
     this.showScreen('view-cart');
     const container = document.getElementById('cart-container');
-    
     if (this.data.cart.length === 0) {
       container.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">Sua lista está vazia.</div>';
       return;
     }
-
     container.innerHTML = this.data.cart.map(function(item, idx) {
       return `
       <div class="product-card">
@@ -1795,12 +1543,10 @@ const app = {
       `;
     }).join('');
   },
-
   editCartItem: function(idx) {
     const item = this.data.cart[idx];
     this.openPriceModal(item.ean, item.price, idx);
   },
-
   removeFromCart: function(idx) {
     this.ask("Deseja remover este item da lista?", function() {
       app.data.cart.splice(idx, 1);
@@ -1810,11 +1556,7 @@ const app = {
       app.notify("Item removido.", "info");
     });
   },
-
-  showList: function() {
-    this.showScreen('view-list');
-  },
-
+  showList: function() { this.showScreen('view-list'); },
   clearCart: function() {
     this.ask("Tem certeza que deseja limpar toda a lista desta loja?", function() {
       app.data.cart = [];
@@ -1824,42 +1566,31 @@ const app = {
       app.notify("Lista limpa.", "info");
     });
   },
-
-  // --- SALVAMENTO E FINALIZAÇÃO ---
   startQueueProcess: function() {
     if (this.data.cart.length === 0) return this.notify("A lista está vazia.", "error");
     document.getElementById('modal-queue').classList.add('open');
     this.pollQueue(true);
   },
-
   pollQueue: async function(isFirstCall) {
     const payloadJson = isFirstCall ? JSON.stringify(this.data.cart) : null;
     const msgEl = document.getElementById('queue-msg');
-    
     try {
       const res = await fetchAppScript('processQueueRequest', {
-        sessionId: this.data.sessionId,
-        user: this.data.currentUser,
-        itemsJson: payloadJson
+        sessionId: this.data.sessionId, user: this.data.currentUser, itemsJson: payloadJson
       });
-        
       if (res.status === 'DONE') {
         msgEl.innerText = "DADOS GRAVADOS!";
-        
         app.state.lastTransaction = {
              items: JSON.parse(JSON.stringify(app.data.cart)),
              competitor: app.data.currentCompetitor,
              user: app.data.currentUser,
              date: new Date().toLocaleDateString('pt-BR')
         };
-        
         app.clearCurrentStoreCache();
-        
         setTimeout(function() {
           document.getElementById('modal-queue').classList.remove('open');
           document.getElementById('modal-success').classList.add('open');
         }, 1000);
-
       } else if (res.status === 'WAITING' || res.status === 'QUEUED') {
         msgEl.innerText = res.message + " (Pos: " + res.position + ")";
         setTimeout(function() { app.pollQueue(false); }, 3000);
@@ -1872,7 +1603,6 @@ const app = {
       setTimeout(function() { app.pollQueue(false); }, 5000);
     }
   },
-
   finishProcess: function() {
     document.getElementById('modal-success').classList.remove('open');
     this.data.cart = [];
@@ -1880,60 +1610,43 @@ const app = {
     this.updateCartCount();
     this.showScreen('view-list');
   },
-
-  // --- WHATSAPP (CORRIGIDO SEM EMOJIS BUGADOS) ---
   sendWhatsapp: function() {
     if (!this.state.lastTransaction) return;
-    
     const t = this.state.lastTransaction;
     const items = t.items;
     const grouped = {};
-    
     items.forEach(function(i) {
        const c = i.category || 'Geral';
        if(!grouped[c]) grouped[c] = [];
        grouped[c].push(i);
     });
-
-    // CABEÇALHO LIMPO (USANDO TEXTO PADRÃO)
     let text = "*RELATORIO DE PESQUISA*\n\n";
     text += ">> LOJA: " + t.competitor + "\n";
     text += ">> USER: " + t.user + "\n";
     text += ">> DATA: " + t.date + "\n\n";
-    
     Object.keys(grouped).sort().forEach(function(cat) {
        const list = grouped[cat];
-       // TÍTULO DO SETOR
        text += "*" + cat.toUpperCase() + "* (" + list.length + ")\n";
-       
        list.forEach(function(i) {
           const price = i.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-          // FORMATO: - NOME: R$ PREÇO
           text += "- " + i.name + ": R$ " + price + "\n";
        });
        text += "\n";
     });
-    
     const url = "https://wa.me/?text=" + encodeURIComponent(text);
     window.open(url, '_blank');
   },
-
   downloadPdf: async function() {
     if (!this.state.lastTransaction) return;
-    
     const btn = document.querySelector('.btn-pdf');
     const originalText = btn.innerHTML;
     btn.innerHTML = 'Gerando...';
     btn.disabled = true;
-
     const payloadStr = JSON.stringify(this.state.lastTransaction);
-
     try {
       const res = await fetchAppScript('generatePdfReport', { dataJson: payloadStr });
-      
       btn.innerHTML = originalText;
       btn.disabled = false;
-         
       if(res.status === 'OK') {
         const link = document.createElement('a');
         link.href = "data:application/pdf;base64," + res.base64;
@@ -1951,18 +1664,14 @@ const app = {
       app.notify("Erro de conexão", "error");
     }
   },
-
   notify: function(msg, type) {
     if (!type) type = 'info';
     const container = document.getElementById('toast-container');
     if(!container) return;
-    
     const el = document.createElement('div');
     el.className = 'toast ' + type; 
-    
     let icon = (type === 'success') ? '✔' : (type === 'error') ? '✖' : 'ℹ';
     el.innerHTML = '<span style="font-weight:bold;">' + icon + '</span><span>' + msg + '</span>';
-    
     container.appendChild(el);
     requestAnimationFrame(function() { 
         el.style.opacity = '1'; 
@@ -1974,7 +1683,6 @@ const app = {
       setTimeout(function() { el.remove(); }, 300);
     }, 3000);
   },
-
   ask: function(msg, callback) {
     const modal = document.getElementById('modal-confirm');
     document.getElementById('confirm-msg').innerText = msg;
@@ -1987,11 +1695,7 @@ const app = {
     };
     modal.classList.add('open');
   },
-
-  closeConfirm: function() {
-    document.getElementById('modal-confirm').classList.remove('open');
-  },
-
+  closeConfirm: function() { document.getElementById('modal-confirm').classList.remove('open'); },
   attemptGoBack: function() {
     if (this.data.cart.length > 0) {
       document.getElementById('exit-store-name').innerText = this.data.currentCompetitor;
@@ -2001,11 +1705,7 @@ const app = {
       this.confirmExit();
     }
   },
-
-  cancelExit: function() {
-    document.getElementById('modal-exit').classList.remove('open');
-  },
-
+  cancelExit: function() { document.getElementById('modal-exit').classList.remove('open'); },
   confirmExit: function() {
     document.getElementById('modal-exit').classList.remove('open');
     this.saveCache();
@@ -2015,35 +1715,24 @@ const app = {
     this.showScreen('view-login');
     this.renderLogin();
   },
-
-  // --- FEEDBACK / SUGESTÕES ---
   openFeedback: function() {
     document.getElementById('inp-feedback').value = '';
     document.getElementById('modal-feedback').classList.add('open');
     setTimeout(function(){ document.getElementById('inp-feedback').focus(); }, 300);
   },
-
-  closeFeedback: function() {
-    document.getElementById('modal-feedback').classList.remove('open');
-  },
-
+  closeFeedback: function() { document.getElementById('modal-feedback').classList.remove('open'); },
   sendFeedback: async function() {
     const text = document.getElementById('inp-feedback').value.trim();
     if (!text) return this.notify("A sugestão não pode estar vazia.", "error");
-
     const btn = document.getElementById('btn-send-feedback');
     const originalText = btn.innerText;
     btn.innerText = "Enviando...";
     btn.disabled = true;
-
     const user = this.data.currentUser || "Usuário Desconhecido";
-
     try {
       const res = await fetchAppScript('saveSuggestion', { user: user, text: text });
-      
       btn.innerText = originalText;
       btn.disabled = false;
-         
       if(res.status === 'OK') {
           app.closeFeedback();
           app.notify("Sugestão enviada com sucesso! Obrigado.", "success");
@@ -2056,8 +1745,9 @@ const app = {
       app.notify("Falha na conexão.", "error");
     }
   }
-};
+}; // Fim do objeto app
 
+// --- 4. INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', function() {
     app.init();
 });
